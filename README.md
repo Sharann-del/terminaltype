@@ -1,26 +1,12 @@
-# 🐒 monkeytypetui
+# monkeytypetui
 
-> A Monkeytype-inspired typing test built for the Unix terminal.
+A Monkeytype-inspired typing test for the Unix terminal.
 
-`monkeytypetui` is a fast, minimal, real-time typing test that runs entirely inside your terminal — no browser required.
+Fast. Minimal. Real-time. No browser required.
 
-Built with Node.js. Distributed via npm and Homebrew.
+## Installation
 
-## ✨ Features
-
-- ⚡ Real-time keystroke capture (no Enter required)
-- 🎯 Live WPM calculation
-- 📊 Live accuracy tracking
-- ⏱ Configurable test duration
-- 🎨 Colored feedback (correct / incorrect characters)
-- 🧠 Monkeytype-inspired minimal interface
-- 💻 Runs entirely inside the terminal
-- 🍺 Installable via Homebrew
-- 📦 Installable via npm
-
-## 📦 Installation
-
-### 🍺 macOS (Homebrew)
+### Homebrew (macOS)
 
 ```bash
 brew tap sharann-del/monkeytypetui
@@ -33,7 +19,7 @@ Run:
 monkeytypetui
 ```
 
-### 📦 npm (macOS / Linux)
+### npm (macOS / Linux)
 
 ```bash
 npm install -g monkeytypetui
@@ -45,59 +31,7 @@ Run:
 monkeytypetui
 ```
 
-## 🚀 Usage
-
-Basic:
-
-```bash
-monkeytypetui
-```
-
-With options:
-
-```bash
-monkeytypetui --time 30
-monkeytypetui --words 50
-```
-
-## ⚙️ Options
-
-| Option | Description |
-|--------|------------|
-| `--time <seconds>` | Set test duration |
-| `--words <count>` | Set number of words |
-
-Defaults:
-- 60 seconds
-- 30 words
-
-## 🏗 Project Structure
-
-```
-monkeytypetui/
-│
-├── index.js
-├── package.json
-├── wordlist.txt
-└── engine/
-    ├── input.js
-    ├── renderer.js
-    ├── stats.js
-    └── typing.js
-```
-
-- `input.js` → Raw key capture
-- `renderer.js` → ANSI rendering engine
-- `stats.js` → WPM & accuracy logic
-- `typing.js` → Word & typing state management
-
-## 🛠 Requirements
-
-- Node.js ≥ 14
-- macOS or Linux
-- Terminal with ANSI color support
-
-## 🔄 Updating
+## Update
 
 If installed via Homebrew:
 
@@ -112,7 +46,34 @@ If installed via npm:
 npm update -g monkeytypetui
 ```
 
-## 🧪 Development
+## Usage
+
+Basic:
+
+```bash
+monkeytypetui
+```
+
+With arguments:
+
+```bash
+monkeytypetui --time 30
+monkeytypetui --words 50
+```
+
+Defaults:
+- 60 seconds
+- 30 words
+
+## Features
+
+- Real-time keystroke capture
+- Live WPM calculation
+- Live accuracy tracking
+- ANSI colored feedback
+- Minimal terminal interface
+
+## Development
 
 Clone the repository:
 
