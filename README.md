@@ -1,8 +1,9 @@
 # monkeytypetui
 
 A Monkeytype-inspired typing test for the Unix terminal.
-
 Fast. Minimal. Real-time. No browser required.
+
+![monkeytypetui](https://github.com/user-attachments/assets/2ba4ac3a-241f-4ccd-b4af-cf328e8559d5)
 
 ## Installation
 
