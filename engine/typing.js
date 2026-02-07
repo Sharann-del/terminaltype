@@ -19,6 +19,15 @@ function loadWordlist(wordlistPath) {
   return unique;
 }
 
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function createWordStream(words) {
   let index = 0;
   return function getNextWords(n) {
@@ -31,6 +40,17 @@ function createWordStream(words) {
   };
 }
 
+function createLimitedWordStream(words) {
+  let index = 0;
+  return function getNextWords(n) {
+    const out = [];
+    for (let i = 0; i < n && index < words.length; i++) {
+      out.push(words[index++]);
+    }
+    return out;
+  };
+}
+
 function buildLine(getNextWords, maxLen) {
   const line = [];
   let len = 0;
@@ -39,17 +59,27 @@ function buildLine(getNextWords, maxLen) {
     if (next.length === 0) break;
     const w = next[0];
     const need = len + (line.length ? 1 : 0) + w.length;
-    if (line.length > 0 && need > maxLen) break;
+    if (line.length > 0 && need > maxLen) {
+      line.push(w);
+      len += (line.length > 1 ? 1 : 0) + w.length;
+      break;
+    }
     line.push(w);
     len += (line.length > 1 ? 1 : 0) + w.length;
   }
   return line;
 }
 
-function createLineBasedTypingState(wordlistPath) {
-  const words = loadWordlist(wordlistPath);
-  const getNextWords = createWordStream(words);
+function createLineBasedTypingState(wordlistPath, options = {}) {
+  const { wordCount: wordLimit = null } = options;
+  const allWords = shuffleArray(loadWordlist(wordlistPath));
+  const words = wordLimit != null ? allWords.slice(0, wordLimit) : allWords;
+  const getNextWords =
+    wordLimit != null ? createLimitedWordStream(words) : createWordStream(words);
+  return createLineBasedTypingStateFromWords(getNextWords, MAX_LINE_LEN, wordLimit);
+}
 
+function createLineBasedTypingStateFromWords(getNextWords, maxLineLen, wordLimit) {
   let lineTop = [];
   let lineCenter = [];
   let lineBottom = [];
@@ -58,12 +88,13 @@ function createLineBasedTypingState(wordlistPath) {
   let currentRowIndex = 0;
   let wordIndex = 0;
   let charIndex = 0;
+  let wordsCompletedBeforeCurrentLine = 0;
 
   function ensureLines() {
     if (lineTop.length === 0 && lineCenter.length === 0 && lineBottom.length === 0) {
-      lineTop = buildLine(getNextWords, MAX_LINE_LEN);
-      lineCenter = buildLine(getNextWords, MAX_LINE_LEN);
-      lineBottom = buildLine(getNextWords, MAX_LINE_LEN);
+      lineTop = buildLine(getNextWords, maxLineLen);
+      lineCenter = buildLine(getNextWords, maxLineLen);
+      lineBottom = buildLine(getNextWords, maxLineLen);
       typedTop = Array.from({ length: lineTop.length }, () => []);
       typedCenter = Array.from({ length: lineCenter.length }, () => []);
     }
@@ -153,16 +184,18 @@ function createLineBasedTypingState(wordlistPath) {
       const line = currentRowIndex === 0 ? lineTop : lineCenter;
       if (wordIndex === line.length - 1) {
         if (currentRowIndex === 0) {
+          wordsCompletedBeforeCurrentLine = line.length;
           currentRowIndex = 1;
           wordIndex = 0;
           charIndex = 0;
           return { completed: false, scrolled: false };
         }
+        wordsCompletedBeforeCurrentLine += line.length;
         lineTop = lineCenter;
         typedTop = typedCenter;
         lineCenter = lineBottom;
         typedCenter = Array.from({ length: lineCenter.length }, () => []);
-        lineBottom = buildLine(getNextWords, MAX_LINE_LEN);
+        lineBottom = buildLine(getNextWords, maxLineLen);
         wordIndex = 0;
         charIndex = 0;
         return { completed: false, scrolled: true };
@@ -184,19 +217,79 @@ function createLineBasedTypingState(wordlistPath) {
       if (wordIndex > 0) {
         wordIndex -= 1;
         charIndex = typed[wordIndex].length;
-        if (charIndex > 0) {
-          const last = typed[wordIndex].pop();
-          if (last.correct) stats.recordBackspaceOnCorrect();
-          else stats.recordBackspaceOnError();
-          charIndex -= 1;
-        }
         return true;
       }
       return false;
     },
 
+    getTotalWordsCompleted() {
+      return wordsCompletedBeforeCurrentLine + wordIndex;
+    },
+
+    getTotalWordsTyped() {
+      // This includes the current word if we're in the middle of typing it
+      const line = currentRowIndex === 0 ? lineTop : lineCenter;
+      const word = line[wordIndex];
+      if (word && charIndex >= word.length) {
+        // We've completed the current word
+        return wordsCompletedBeforeCurrentLine + wordIndex + 1;
+      }
+      return wordsCompletedBeforeCurrentLine + wordIndex;
+    },
+
     isTestComplete(timeLimitSeconds, elapsedSeconds) {
-      return elapsedSeconds >= timeLimitSeconds;
+      if (timeLimitSeconds != null && elapsedSeconds >= timeLimitSeconds) return true;
+      if (wordLimit != null) {
+        const totalTyped = this.getTotalWordsTyped();
+        if (totalTyped >= wordLimit) return true;
+      }
+      return false;
+    },
+  };
+}
+
+function createCustomTypingState(customText) {
+  const words = customText
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0);
+  if (words.length === 0) throw new Error('Custom text has no words');
+  const getNextWords = createLimitedWordStream(words);
+  return createLineBasedTypingStateFromWords(getNextWords, MAX_LINE_LEN, words.length);
+}
+
+function createZenTypingState() {
+  let typedSoFar = '';
+  return {
+    getTypedSoFar() {
+      return typedSoFar;
+    },
+    getLines() {
+      return [[], [], []];
+    },
+    getCurrentWordIndex: () => 0,
+    getCharIndex: () => typedSoFar.length,
+    getCharStatus: () => 'untyped',
+    isWordComplete: () => false,
+    isCurrentWord: () => false,
+    handleCharacter(char, stats) {
+      typedSoFar += char;
+      stats.recordCorrect();
+      return { completed: false, scrolled: false };
+    },
+    handleSpace(stats) {
+      typedSoFar += ' ';
+      stats.recordCorrect();
+      return { completed: false, scrolled: false };
+    },
+    handleBackspace(stats) {
+      if (typedSoFar.length === 0) return false;
+      typedSoFar = typedSoFar.slice(0, -1);
+      stats.recordBackspaceOnCorrect();
+      return true;
+    },
+    isTestComplete() {
+      return false;
     },
   };
 }
@@ -206,5 +299,8 @@ module.exports = {
   createWordStream,
   buildLine,
   createLineBasedTypingState,
+  createLineBasedTypingStateFromWords,
+  createCustomTypingState,
+  createZenTypingState,
   MAX_LINE_LEN,
 };

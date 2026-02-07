@@ -36,6 +36,10 @@ function setupRawInput(onKey) {
       onKey({ type: 'enter' });
       return;
     }
+    if (key.name === 'escape') {
+      onKey({ type: 'escape' });
+      return;
+    }
     if (key.name === 'space') {
       onKey({ type: 'char', char: ' ' });
       return;
