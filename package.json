@@ -1,6 +1,6 @@
 {
   "name": "terminaltype",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "Monkeytype-inspired terminal typing test",
   "main": "index.js",
   "bin": {
