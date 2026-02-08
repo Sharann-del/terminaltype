@@ -12,12 +12,6 @@ const DEFAULT_SETTINGS = {
     confidenceMode: 'off',
   },
   appearance: {
-    caret: {
-      caretStyle: 'underline',
-      paceCaret: 'off',
-      paceCaretStyle: '|',
-      paceCaretCustomWpm: 40,
-    },
     liveProgressBar: 'bar',
     liveSpeed: 'text',
     liveAccuracy: 'text',
@@ -89,7 +83,6 @@ function validateBehavior(b) {
 
 function validateAppearance(a) {
   if (!a || typeof a !== 'object') return false;
-  if (a.caret && typeof a.caret !== 'object') return false;
   return (
     typeof (a.liveProgressBar ?? a.liveProgress) === 'string' &&
     typeof (a.liveSpeed ?? '') === 'string' &&

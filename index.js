@@ -27,7 +27,6 @@ const {
   SETTINGS_CATEGORIES,
   BEHAVIOR_OPTIONS,
   APPEARANCE_OPTIONS,
-  CARET_OPTIONS,
   KEYMAP_OPTIONS,
   THEME_PRESET_NAMES,
   THEME_COLOR_OPTIONS,
@@ -36,8 +35,6 @@ const {
 const {
   getBehavior,
   setBehavior,
-  getCaret,
-  setCaret,
   getAppearance,
   setAppearance,
   getKeymap,
@@ -206,29 +203,13 @@ async function run() {
 
     caretPhase += 1;
 
-    const caretConfig = getCaret();
     let mainCaretPosition = null;
-    let paceCaretPosition = null;
 
     if (typingState.getLogicalCaretCharIndex && typingState.getPositionFromCharIndex) {
       const logicalIndex = typingState.getLogicalCaretCharIndex();
       displayCaretCharIndex += (logicalIndex - displayCaretCharIndex) * 0.55;
       const displayIndex = Math.round(displayCaretCharIndex);
       mainCaretPosition = typingState.getPositionFromCharIndex(displayIndex);
-
-      if (caretConfig.paceCaret && caretConfig.paceCaret !== 'off') {
-        const elapsed = stats.getElapsedSeconds();
-        let paceWpm = 40;
-        if (caretConfig.paceCaret === 'avg') {
-          paceWpm = Math.max(1, Math.round(stats.getWPM()));
-        } else if (caretConfig.paceCaret === 'custom' && typeof caretConfig.paceCaretCustomWpm === 'number') {
-          paceWpm = Math.max(1, caretConfig.paceCaretCustomWpm);
-        } else if (caretConfig.paceCaret === 'pb' || caretConfig.paceCaret === 'last' || caretConfig.paceCaret === 'daily') {
-          paceWpm = 50;
-        }
-        const paceCharIndex = Math.floor((elapsed / 60) * paceWpm * 5);
-        paceCaretPosition = typingState.getPositionFromCharIndex(paceCharIndex);
-      }
     }
 
     const keymapConfig = getKeymap();
@@ -252,7 +233,12 @@ async function run() {
       : 0;
     renderTestScreen({
       typingState,
-      stats,
+      statsSnapshot: stats.getSnapshot(),
+      progress: testMode === 'time' && timeLimitSeconds
+        ? (stats.getElapsedSeconds() / timeLimitSeconds)
+        : (wordLimit != null && typeof typingState.getTotalWordsTyped === 'function'
+          ? typingState.getTotalWordsTyped() / wordLimit
+          : 0),
       testMode,
       timeLimitSeconds: testMode === 'time' ? (timeLimitSeconds ?? 0) : null,
       wordLimit: wordLimit ?? undefined,
@@ -260,11 +246,9 @@ async function run() {
       appearanceConfig: getAppearance(),
       themeConfig: getEffectiveTheme(),
       behaviorConfig: getBehavior(),
-      caretConfig,
       keymapConfig,
       mainCaretPosition,
       mainCaretCharIndex: useTape ? displayIndex : undefined,
-      paceCaretPosition,
       tapeScrollOffset: useTape ? tapeScrollOffset : 0,
       lastKeyPressed,
     });
@@ -306,7 +290,6 @@ async function run() {
             rightOptionIndex: settingsRightOptionIndex,
             optionStates: settingsOptionStates,
             behaviorConfig: getBehavior(),
-            caretConfig: getCaret(),
             appearanceConfig: getAppearance(),
             keymapConfig: getKeymap(),
             themeConfig: getTheme(),
@@ -428,7 +411,6 @@ async function run() {
           rightOptionIndex: settingsRightOptionIndex,
           optionStates: settingsOptionStates,
           behaviorConfig: getBehavior(),
-          caretConfig: getCaret(),
           appearanceConfig: getAppearance(),
           keymapConfig: getKeymap(),
           themeConfig: getTheme(),
@@ -450,9 +432,8 @@ async function run() {
       const navDown = event.type === 'arrowDown' || (event.type === 'char' && event.char === 'j');
       const isBehaviorCategory = settingsCategoryIndex === 0;
       const isAppearanceCategory = settingsCategoryIndex === 1;
-      const isCaretCategory = settingsCategoryIndex === 2;
-      const isKeymapCategory = settingsCategoryIndex === 3;
-      const isThemeCategory = settingsCategoryIndex === 4;
+      const isKeymapCategory = settingsCategoryIndex === 2;
+      const isThemeCategory = settingsCategoryIndex === 3;
       if (event.type === 'arrowLeft' && settingsPanelFocus === 'right' && isBehaviorCategory && BEHAVIOR_OPTIONS[settingsRightOptionIndex]) {
         const opt = BEHAVIOR_OPTIONS[settingsRightOptionIndex];
         const behavior = getBehavior();
@@ -500,38 +481,6 @@ async function run() {
           const idx = opt.values.indexOf(appearance[opt.key]);
           const valueIdx = idx >= 0 ? (idx + 1) % opt.values.length : 0;
           setAppearance(opt.key, opt.values[valueIdx]);
-        }
-        saveConfig();
-        renderSettings();
-        return;
-      }
-      if (event.type === 'arrowLeft' && settingsPanelFocus === 'right' && isCaretCategory && CARET_OPTIONS[settingsRightOptionIndex]) {
-        const opt = CARET_OPTIONS[settingsRightOptionIndex];
-        const caret = getCaret();
-        if (opt.type === 'slider') {
-          const value = caret[opt.key] ?? opt.min;
-          const newValue = Math.max(opt.min, value - (opt.step || 5));
-          setCaret(opt.key, newValue);
-        } else {
-          const idx = opt.values.indexOf(caret[opt.key]);
-          const valueIdx = idx >= 0 ? (idx - 1 + opt.values.length) % opt.values.length : 0;
-          setCaret(opt.key, opt.values[valueIdx]);
-        }
-        saveConfig();
-        renderSettings();
-        return;
-      }
-      if (event.type === 'arrowRight' && settingsPanelFocus === 'right' && isCaretCategory && CARET_OPTIONS[settingsRightOptionIndex]) {
-        const opt = CARET_OPTIONS[settingsRightOptionIndex];
-        const caret = getCaret();
-        if (opt.type === 'slider') {
-          const value = caret[opt.key] ?? opt.min;
-          const newValue = Math.min(opt.max, value + (opt.step || 5));
-          setCaret(opt.key, newValue);
-        } else {
-          const idx = opt.values.indexOf(caret[opt.key]);
-          const valueIdx = idx >= 0 ? (idx + 1) % opt.values.length : 0;
-          setCaret(opt.key, opt.values[valueIdx]);
         }
         saveConfig();
         renderSettings();
@@ -614,7 +563,7 @@ async function run() {
       if (event.type === 'tab') {
         settingsPanelFocus = settingsPanelFocus === 'left' ? 'right' : 'left';
         if (settingsPanelFocus === 'right') {
-          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 4 ? getTheme() : undefined);
+          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 3 ? getTheme() : undefined);
           settingsRightOptionIndex = Math.min(settingsRightOptionIndex, n - 1);
         }
         renderSettings();
@@ -623,10 +572,10 @@ async function run() {
       if (navUp) {
         if (settingsPanelFocus === 'left') {
           settingsCategoryIndex = (settingsCategoryIndex - 1 + SETTINGS_CATEGORIES.length) % SETTINGS_CATEGORIES.length;
-          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 4 ? getTheme() : undefined);
+          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 3 ? getTheme() : undefined);
           settingsRightOptionIndex = Math.min(settingsRightOptionIndex, n - 1);
         } else {
-          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 4 ? getTheme() : undefined);
+          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 3 ? getTheme() : undefined);
           settingsRightOptionIndex = n ? (settingsRightOptionIndex - 1 + n) % n : 0;
         }
         renderSettings();
@@ -635,10 +584,10 @@ async function run() {
       if (navDown) {
         if (settingsPanelFocus === 'left') {
           settingsCategoryIndex = (settingsCategoryIndex + 1) % SETTINGS_CATEGORIES.length;
-          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 4 ? getTheme() : undefined);
+          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 3 ? getTheme() : undefined);
           settingsRightOptionIndex = Math.min(settingsRightOptionIndex, n - 1);
         } else {
-          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 4 ? getTheme() : undefined);
+          const n = getSettingsOptionCount(settingsCategoryIndex, settingsCategoryIndex === 3 ? getTheme() : undefined);
           settingsRightOptionIndex = n ? (settingsRightOptionIndex + 1) % n : 0;
         }
         renderSettings();
@@ -671,22 +620,6 @@ async function run() {
               const idx = opt.values.indexOf(appearance[opt.key]);
               const valueIdx = idx >= 0 ? (idx + 1) % opt.values.length : 0;
               setAppearance(opt.key, opt.values[valueIdx]);
-            }
-            saveConfig();
-            renderSettings();
-          }
-        } else if (isCaretCategory) {
-          const opt = CARET_OPTIONS[settingsRightOptionIndex];
-          if (opt) {
-            const caret = getCaret();
-            if (opt.type === 'slider') {
-              const value = caret[opt.key] ?? opt.min;
-              const newValue = Math.min(opt.max, value + (opt.step || 5));
-              setCaret(opt.key, newValue);
-            } else {
-              const idx = opt.values.indexOf(caret[opt.key]);
-              const valueIdx = idx >= 0 ? (idx + 1) % opt.values.length : 0;
-              setCaret(opt.key, opt.values[valueIdx]);
             }
             saveConfig();
             renderSettings();

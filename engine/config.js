@@ -31,13 +31,6 @@ const DEFAULT_BEHAVIOR = {
   confidenceMode: 'off',
 };
 
-const DEFAULT_CARET = {
-  caretStyle: 'underline',
-  paceCaret: 'off',
-  paceCaretStyle: 'off',
-  paceCaretCustomWpm: 40,
-};
-
 const DEFAULT_APPEARANCE = {
   liveProgressBar: 'bar',
   liveSpeed: 'text',
@@ -143,7 +136,7 @@ function seedBuggyPublishedState() {
   const s = store && store.settings ? store.settings : {};
   const app = s.appearance || {};
   cm.set('settings.behavior', { ...(s.behavior || {}), quickRestart: 'enter' });
-  cm.set('settings.appearance', { ...app, tapeMargin: 100, caret: { ...(app.caret || {}), caretStyle: '|' } });
+  cm.set('settings.appearance', { ...app, tapeMargin: 100 });
 }
 
 function getConfigPath() {
@@ -156,7 +149,6 @@ function mapFromPersistent(store) {
   const s = store.settings;
   const app = s.appearance || {};
   const behavior = { ...DEFAULT_BEHAVIOR, ...(s.behavior || {}) };
-  const caret = { ...DEFAULT_CARET, ...(app.caret || {}) };
   const appearance = {
     ...DEFAULT_APPEARANCE,
     liveProgressBar: app.liveProgressBar ?? app.liveProgress ?? DEFAULT_APPEARANCE.liveProgressBar,
@@ -177,10 +169,6 @@ function mapFromPersistent(store) {
       appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
       migrated = true;
     }
-    if (caret.paceCaretStyle === '|') {
-      caret.paceCaretStyle = 'off';
-      migrated = true;
-    }
   }
   if (migrated) {
     const cm = getConfigManager();
@@ -188,21 +176,12 @@ function mapFromPersistent(store) {
       try {
         cm.set('settings.behavior', behavior);
         const app = store.settings.appearance || {};
-        cm.set('settings.appearance', { 
-          ...app, 
-          tapeMargin: appearance.tapeMargin, 
-          caret: { 
-            ...(app.caret || {}), 
-            caretStyle: caret.caretStyle,
-            paceCaretStyle: caret.paceCaretStyle
-          } 
-        });
+        cm.set('settings.appearance', { ...app, tapeMargin: appearance.tapeMargin });
       } catch (_) {}
     }
   }
   return {
     behavior,
-    caret,
     appearance,
     keymap: {
       ...DEFAULT_KEYMAP,
@@ -243,7 +222,6 @@ function load() {
     const data = JSON.parse(raw);
     cached = {
       behavior: { ...DEFAULT_BEHAVIOR, ...(data.behavior || {}) },
-      caret: { ...DEFAULT_CARET, ...(data.caret || {}) },
       appearance: { ...DEFAULT_APPEARANCE, ...(data.appearance || {}) },
       keymap: { ...DEFAULT_KEYMAP, ...(data.keymap || {}) },
       theme: { ...DEFAULT_THEME, ...(data.theme || {}) },
@@ -259,7 +237,6 @@ function load() {
   } catch (_) {
     cached = {
       behavior: { ...DEFAULT_BEHAVIOR },
-      caret: { ...DEFAULT_CARET },
       appearance: { ...DEFAULT_APPEARANCE },
       keymap: { ...DEFAULT_KEYMAP },
       theme: { ...DEFAULT_THEME },
@@ -329,19 +306,6 @@ function setBehavior(key, value) {
   const config = load();
   if (config.behavior[key] !== undefined) {
     config.behavior[key] = value;
-    return true;
-  }
-  return false;
-}
-
-function getCaret() {
-  return { ...DEFAULT_CARET, ...load().caret };
-}
-
-function setCaret(key, value) {
-  const config = load();
-  if (config.caret[key] !== undefined) {
-    config.caret[key] = value;
     return true;
   }
   return false;
@@ -421,7 +385,6 @@ function save() {
     const ok =
       cm.set('settings.behavior', config.behavior) &&
       cm.set('settings.appearance', {
-        caret: config.caret,
         liveProgressBar: config.appearance.liveProgressBar,
         liveSpeed: config.appearance.liveSpeed,
         liveAccuracy: config.appearance.liveAccuracy,
@@ -444,7 +407,6 @@ function save() {
     }
     const toWrite = {
       behavior: config.behavior,
-      caret: config.caret,
       appearance: config.appearance,
       keymap: config.keymap,
       theme: config.theme,
@@ -465,8 +427,6 @@ module.exports = {
   seedBuggyPublishedState,
   getBehavior,
   setBehavior,
-  getCaret,
-  setCaret,
   getAppearance,
   setAppearance,
   getKeymap,
@@ -479,7 +439,6 @@ module.exports = {
   addResultToHistory,
   getResultsHistory,
   DEFAULT_BEHAVIOR,
-  DEFAULT_CARET,
   DEFAULT_APPEARANCE,
   DEFAULT_KEYMAP,
   THEME_PRESETS,
