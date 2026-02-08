@@ -131,18 +131,44 @@ function mapFromPersistent(store) {
   if (!store || !store.settings) return null;
   const s = store.settings;
   const app = s.appearance || {};
+  const behavior = { ...DEFAULT_BEHAVIOR, ...(s.behavior || {}) };
+  const caret = { ...DEFAULT_CARET, ...(app.caret || {}) };
+  const appearance = {
+    ...DEFAULT_APPEARANCE,
+    liveProgressBar: app.liveProgressBar ?? app.liveProgress ?? DEFAULT_APPEARANCE.liveProgressBar,
+    liveSpeed: app.liveSpeed ?? DEFAULT_APPEARANCE.liveSpeed,
+    liveAccuracy: app.liveAccuracy ?? DEFAULT_APPEARANCE.liveAccuracy,
+    liveBurst: app.liveBurst ?? DEFAULT_APPEARANCE.liveBurst,
+    tapeMode: app.tapeMode ?? DEFAULT_APPEARANCE.tapeMode,
+    tapeMargin: app.tapeMargin ?? DEFAULT_APPEARANCE.tapeMargin,
+  };
+  let migrated = false;
+  if (behavior.quickRestart === 'enter') {
+    behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
+    migrated = true;
+  }
+  if (appearance.tapeMargin === 100) {
+    appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
+    migrated = true;
+  }
+  if (caret.caretStyle !== 'underline' && caret.caretStyle !== 'off') {
+    caret.caretStyle = DEFAULT_CARET.caretStyle;
+    migrated = true;
+  }
+  if (migrated) {
+    const cm = getConfigManager();
+    if (cm) {
+      try {
+        cm.set('settings.behavior', behavior);
+        const app = store.settings.appearance || {};
+        cm.set('settings.appearance', { ...app, tapeMargin: appearance.tapeMargin, caret: { ...(app.caret || {}), caretStyle: caret.caretStyle } });
+      } catch (_) {}
+    }
+  }
   return {
-    behavior: { ...DEFAULT_BEHAVIOR, ...(s.behavior || {}) },
-    caret: { ...DEFAULT_CARET, ...(app.caret || {}) },
-    appearance: {
-      ...DEFAULT_APPEARANCE,
-      liveProgressBar: app.liveProgressBar ?? app.liveProgress ?? DEFAULT_APPEARANCE.liveProgressBar,
-      liveSpeed: app.liveSpeed ?? DEFAULT_APPEARANCE.liveSpeed,
-      liveAccuracy: app.liveAccuracy ?? DEFAULT_APPEARANCE.liveAccuracy,
-      liveBurst: app.liveBurst ?? DEFAULT_APPEARANCE.liveBurst,
-      tapeMode: app.tapeMode ?? DEFAULT_APPEARANCE.tapeMode,
-      tapeMargin: app.tapeMargin ?? DEFAULT_APPEARANCE.tapeMargin,
-    },
+    behavior,
+    caret,
+    appearance,
     keymap: {
       ...DEFAULT_KEYMAP,
       keymapMode: app.keymapMode ?? DEFAULT_KEYMAP.keymapMode,
@@ -188,6 +214,9 @@ function load() {
       theme: { ...DEFAULT_THEME, ...(data.theme || {}) },
       resultsHistory: Array.isArray(data.resultsHistory) ? data.resultsHistory : [],
     };
+    if (cached.behavior.quickRestart === 'enter') cached.behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
+    if (cached.appearance.tapeMargin === 100) cached.appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
+    if (cached.caret.caretStyle !== 'underline' && cached.caret.caretStyle !== 'off') cached.caret.caretStyle = DEFAULT_CARET.caretStyle;
     if (cached.theme.custom) {
       cached.theme.custom = { ...THEME_PRESETS.default, ...cached.theme.custom };
     }
@@ -257,7 +286,7 @@ function getResultsHistory() {
 }
 
 function getBehavior() {
-  return { ...load().behavior };
+  return { ...DEFAULT_BEHAVIOR, ...load().behavior };
 }
 
 function setBehavior(key, value) {
@@ -270,7 +299,7 @@ function setBehavior(key, value) {
 }
 
 function getCaret() {
-  return { ...load().caret };
+  return { ...DEFAULT_CARET, ...load().caret };
 }
 
 function setCaret(key, value) {
@@ -283,7 +312,7 @@ function setCaret(key, value) {
 }
 
 function getAppearance() {
-  return { ...load().appearance };
+  return { ...DEFAULT_APPEARANCE, ...load().appearance };
 }
 
 function setAppearance(key, value) {

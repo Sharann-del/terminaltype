@@ -224,7 +224,7 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
   const showError = !blindMode;
   const start = Math.max(0, Math.floor(scrollOffset));
   const tapeLength = typingState.getTapeLength();
-  const mainCaretChar = (caretConfig && caretConfig.caretStyle && caretConfig.caretStyle !== 'off') ? caretConfig.caretStyle : null;
+  const mainCaretChar = (caretConfig && (caretConfig.caretStyle ?? 'underline') !== 'off') ? 'underline' : null;
   const paceCaretChar = (caretConfig && caretConfig.paceCaretStyle && caretConfig.paceCaretStyle !== 'off') ? caretConfig.paceCaretStyle : null;
   let out = '';
   for (let localPos = 0; localPos < viewportWidth; localPos++) {
@@ -397,7 +397,7 @@ function renderTestScreen(options) {
   }
   let caretOptions = null;
   if (caretConfig && (resolvedMainPosition || resolvedPacePosition)) {
-    const mainChar = (caretConfig.caretStyle && caretConfig.caretStyle !== 'off') ? caretConfig.caretStyle : ' ';
+    const mainChar = ((caretConfig.caretStyle ?? 'underline') !== 'off') ? 'underline' : ' ';
     const paceChar = (caretConfig.paceCaretStyle && caretConfig.paceCaretStyle !== 'off') ? caretConfig.paceCaretStyle : ' ';
     caretOptions = {
       mainCaretPosition: resolvedMainPosition || null,
@@ -505,7 +505,7 @@ function renderTestScreen(options) {
       row++;
     }
   }
-  out += theme.reset;
+  out += theme.reset + '\x1b[?25l';
   process.stdout.write(out);
 }
 
@@ -850,12 +850,11 @@ function renderCustomInputScreen(prompt, inputText, cursorOffset, themeConfig) {
   const boxLines = boxAroundWithPadding(content, theme, totalBoxWidth);
   const pad = Math.max(0, Math.floor((cols - visibleLength(boxLines[0])) / 2));
   const startRow = Math.max(1, Math.floor((termHeight - boxLines.length) / 2) + 1);
-  let out = '\x1b[2J\x1b[H';
+  let out = '\x1b[?25l\x1b[2J\x1b[H';
   for (let i = 0; i < boxLines.length; i++) {
     out += '\x1b[' + (startRow + i) + ';1H\x1b[K' + ' '.repeat(pad) + boxLines[i] + '\n';
   }
   process.stdout.write(out);
-  showCursor();
 }
 
 function renderZenTestScreen(stats, typedSoFar, caretPhase, themeConfig) {
