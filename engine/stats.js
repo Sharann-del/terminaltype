@@ -1,15 +1,5 @@
 'use strict';
 
-/**
- * Typing test stats.
- * - timeSeconds = test duration; totalTypedChars = all characters currently in buffer; correctChars = correct; totalErrors = uncorrected (net) errors; errorsIncludingCorrected = all errors ever made (including those fixed with backspace).
- * - 1 word = 5 characters.
- * - rawWPM = (totalTypedChars / 5) / (timeSeconds / 60)  — uses all typed characters.
- * - wpm (net) = (correctChars / 5) / (timeSeconds / 60)  — uses only correct characters; lower than rawWPM if uncorrected errors remain.
- * - accuracy = (correctChars / (correctChars + errorsIncludingCorrected)) * 100  — corrected errors still count against accuracy; cannot be 100% if any error was made then fixed.
- * - characters (displayed) = correctChars / totalTypedChars (final buffer). errors (displayed) = errorsIncludingCorrected (total errors made, including corrected).
- */
-
 function createStats() {
   let startTime = null;
   let correctCharacters = 0;

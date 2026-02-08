@@ -34,7 +34,7 @@ const DEFAULT_BEHAVIOR = {
 const DEFAULT_CARET = {
   caretStyle: 'underline',
   paceCaret: 'off',
-  paceCaretStyle: '|',
+  paceCaretStyle: 'off',
   paceCaretCustomWpm: 40,
 };
 
@@ -134,6 +134,18 @@ function clearAllData() {
   cached = null;
 }
 
+function seedBuggyPublishedState() {
+  clearAllData();
+  if (!usePersistentConfig()) return;
+  const cm = getConfigManager();
+  if (!cm || typeof cm.set !== 'function') return;
+  const store = cm.get();
+  const s = store && store.settings ? store.settings : {};
+  const app = s.appearance || {};
+  cm.set('settings.behavior', { ...(s.behavior || {}), quickRestart: 'enter' });
+  cm.set('settings.appearance', { ...app, tapeMargin: 100, caret: { ...(app.caret || {}), caretStyle: '|' } });
+}
+
 function getConfigPath() {
   if (usePersistentConfig()) return getConfigManager().getConfigPath();
   return CONFIG_PATH;
@@ -154,18 +166,25 @@ function mapFromPersistent(store) {
     tapeMode: app.tapeMode ?? DEFAULT_APPEARANCE.tapeMode,
     tapeMargin: app.tapeMargin ?? DEFAULT_APPEARANCE.tapeMargin,
   };
+  const skipMigration = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
   let migrated = false;
-  if (behavior.quickRestart === 'enter') {
-    behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
-    migrated = true;
-  }
-  if (appearance.tapeMargin === 100) {
-    appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
-    migrated = true;
-  }
-  if (caret.caretStyle !== 'underline' && caret.caretStyle !== 'off') {
-    caret.caretStyle = DEFAULT_CARET.caretStyle;
-    migrated = true;
+  if (!skipMigration) {
+    if (behavior.quickRestart === 'enter') {
+      behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
+      migrated = true;
+    }
+    if (appearance.tapeMargin === 100) {
+      appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
+      migrated = true;
+    }
+    if (caret.caretStyle !== 'underline' && caret.caretStyle !== 'off') {
+      caret.caretStyle = DEFAULT_CARET.caretStyle;
+      migrated = true;
+    }
+    if (caret.paceCaretStyle === '|') {
+      caret.paceCaretStyle = 'off';
+      migrated = true;
+    }
   }
   if (migrated) {
     const cm = getConfigManager();
@@ -173,7 +192,15 @@ function mapFromPersistent(store) {
       try {
         cm.set('settings.behavior', behavior);
         const app = store.settings.appearance || {};
-        cm.set('settings.appearance', { ...app, tapeMargin: appearance.tapeMargin, caret: { ...(app.caret || {}), caretStyle: caret.caretStyle } });
+        cm.set('settings.appearance', { 
+          ...app, 
+          tapeMargin: appearance.tapeMargin, 
+          caret: { 
+            ...(app.caret || {}), 
+            caretStyle: caret.caretStyle,
+            paceCaretStyle: caret.paceCaretStyle
+          } 
+        });
       } catch (_) {}
     }
   }
@@ -226,9 +253,11 @@ function load() {
       theme: { ...DEFAULT_THEME, ...(data.theme || {}) },
       resultsHistory: Array.isArray(data.resultsHistory) ? data.resultsHistory : [],
     };
-    if (cached.behavior.quickRestart === 'enter') cached.behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
-    if (cached.appearance.tapeMargin === 100) cached.appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
-    if (cached.caret.caretStyle !== 'underline' && cached.caret.caretStyle !== 'off') cached.caret.caretStyle = DEFAULT_CARET.caretStyle;
+    if (process.env.TERMINALTYPE_SIMULATE_PUBLISHED !== '1') {
+      if (cached.behavior.quickRestart === 'enter') cached.behavior.quickRestart = DEFAULT_BEHAVIOR.quickRestart;
+      if (cached.appearance.tapeMargin === 100) cached.appearance.tapeMargin = DEFAULT_APPEARANCE.tapeMargin;
+      if (cached.caret.caretStyle !== 'underline' && cached.caret.caretStyle !== 'off') cached.caret.caretStyle = DEFAULT_CARET.caretStyle;
+    }
     if (cached.theme.custom) {
       cached.theme.custom = { ...THEME_PRESETS.default, ...cached.theme.custom };
     }
@@ -438,6 +467,7 @@ module.exports = {
   load,
   clearConfigCache,
   clearAllData,
+  seedBuggyPublishedState,
   getBehavior,
   setBehavior,
   getCaret,

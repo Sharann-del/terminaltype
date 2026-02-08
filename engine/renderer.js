@@ -32,7 +32,7 @@ function getResolvedTheme(hexTheme) {
     caret: '\x1b[4m' + hexToAnsi(h.caret),
     accent: hexToAnsi(h.main),
     reset: '\x1b[0m',
-    bg: '', // themes only change text colors; background is never applied
+    bg: '',
   };
 }
 
@@ -61,7 +61,6 @@ function clearScreen() {
   process.stdout.write('\x1b[2J\x1b[H');
 }
 
-/** Uniform content width for all box screens (content only; box adds 2 for borders). */
 function getUniformContentWidth(cols) {
   const c = cols || 80;
   return c >= 84 ? 80 : Math.max(72, c - 4);
@@ -147,7 +146,10 @@ function renderWordWithState(word, typingState, lineIdx, wordIndex, theme, blind
       if (status === 'caret') {
         const style = (caretOptions && caretOptions.mainCaretStyle) || caret;
         const caretChar = (caretOptions && caretOptions.mainCaretChar) || null;
-        if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
+        const sim = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
+        if (sim && caretChar && caretChar !== ' ' && caretChar !== 'underline') {
+          out += style + caretChar + reset + dim + ch + reset;
+        } else if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
           out += ANSI_UNDERLINE + style + ch + reset;
         } else {
           out += style + ch + reset;
@@ -174,11 +176,13 @@ function renderWordWithState(word, typingState, lineIdx, wordIndex, theme, blind
       out += style + ' ' + reset;
     }
   } else if (hasNextWord && isCurrent && typingState.getCharStatus(lineIdx, wordIndex, word.length) === 'caret') {
-    // Caret on space: space is rendered in renderWordWithTrailingSpace
   } else if (!hasNextWord && isCurrent && typingState.getCharStatus(lineIdx, wordIndex, word.length) === 'caret') {
     const style = (caretOptions && caretOptions.mainCaretStyle) || caret;
     const caretChar = (caretOptions && caretOptions.mainCaretChar) || null;
-    if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
+    const sim = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
+    if (sim && caretChar && caretChar !== ' ' && caretChar !== 'underline') {
+      out += style + caretChar + reset + dim + ' ' + reset;
+    } else if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
       out += ANSI_UNDERLINE + style + ' ' + reset;
     } else {
       out += style + ' ' + reset;
@@ -195,7 +199,10 @@ function renderWordWithTrailingSpace(word, typingState, lineIdx, wordIndex, them
   if (caretOnSpace && caretOptions) {
     const style = (caretOptions.mainCaretStyle) || caret;
     const caretChar = caretOptions.mainCaretChar || null;
-    if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
+    const sim = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
+    if (sim && caretChar && caretChar !== ' ' && caretChar !== 'underline') {
+      out += style + caretChar + reset + dim + ' ' + reset;
+    } else if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
       out += ANSI_UNDERLINE + style + ' ' + reset;
     } else {
       out += style + ' ' + reset;
@@ -218,7 +225,10 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
   const showError = !blindMode;
   const start = Math.max(0, Math.floor(scrollOffset));
   const tapeLength = typingState.getTapeLength();
-  const mainCaretChar = (caretConfig && (caretConfig.caretStyle ?? 'underline') !== 'off') ? 'underline' : null;
+  const simulatePublished = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
+  const mainCaretChar = (caretConfig && (caretConfig.caretStyle ?? 'underline') !== 'off')
+    ? (simulatePublished ? (caretConfig.caretStyle ?? 'underline') : 'underline')
+    : null;
   const paceCaretChar = (caretConfig && caretConfig.paceCaretStyle && caretConfig.paceCaretStyle !== 'off') ? caretConfig.paceCaretStyle : null;
   let out = '';
   for (let localPos = 0; localPos < viewportWidth; localPos++) {
@@ -229,7 +239,11 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
       const { char: ch, status } = typingState.getTapeCharAt(tapeCharIndex);
       const charToShow = ch || ' ';
       if (isMainCaret) {
-        out += ANSI_UNDERLINE + caret + charToShow + reset;
+        if (simulatePublished && mainCaretChar && mainCaretChar !== 'underline') {
+          out += caret + mainCaretChar + reset + dim + charToShow + reset;
+        } else {
+          out += ANSI_UNDERLINE + caret + charToShow + reset;
+        }
       } else if (isPaceCaret) {
         if (paceCaretChar) {
           out += dim + caret + paceCaretChar + reset + dim + charToShow + reset;
@@ -247,7 +261,11 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
       }
     } else {
       if (isMainCaret) {
-        out += ANSI_UNDERLINE + caret + ' ' + reset;
+        if (simulatePublished && mainCaretChar && mainCaretChar !== 'underline') {
+          out += caret + mainCaretChar + reset + dim + ' ' + reset;
+        } else {
+          out += ANSI_UNDERLINE + caret + ' ' + reset;
+        }
       } else if (isPaceCaret) {
         if (paceCaretChar) {
           out += dim + caret + paceCaretChar + reset + dim + ' ' + reset;
@@ -378,8 +396,11 @@ function renderTestScreen(options) {
     resolvedMainPosition = typingState.getPositionFromCharIndex(logicalIdx);
   }
   let caretOptions = null;
+  const simulatePublished = process.env.TERMINALTYPE_SIMULATE_PUBLISHED === '1';
   if (caretConfig && (resolvedMainPosition || resolvedPacePosition)) {
-    const mainChar = ((caretConfig.caretStyle ?? 'underline') !== 'off') ? 'underline' : ' ';
+    const mainChar = ((caretConfig.caretStyle ?? 'underline') !== 'off')
+      ? (simulatePublished ? (caretConfig.caretStyle ?? 'underline') : 'underline')
+      : ' ';
     const paceChar = (caretConfig.paceCaretStyle && caretConfig.paceCaretStyle !== 'off') ? caretConfig.paceCaretStyle : ' ';
     caretOptions = {
       mainCaretPosition: resolvedMainPosition || null,
@@ -391,7 +412,6 @@ function renderTestScreen(options) {
     };
   }
 
-  // Only show stats that are explicitly enabled in settings (no defaults)
   const live = {
     liveProgressBar: appearanceConfig.liveProgressBar ?? 'bar',
     liveSpeed: appearanceConfig.liveSpeed ?? 'off',
@@ -943,9 +963,8 @@ function renderResultsScreen(options) {
 const SETTINGS_LEFT_WIDTH = 20;
 const SETTINGS_RIGHT_MIN_WIDTH = 38;
 const SETTINGS_RIGHT_MAX_WIDTH = 64;
-// Minimum right panel width so Theme preset line shows "default · serika · dark · light · nord · custom" fully
 const THEME_PRESET_LINE_PLAIN = '  Preset   ' + THEME_PRESET_NAMES.join(' · ');
-const MIN_RIGHT_WIDTH_FOR_THEME = THEME_PRESET_LINE_PLAIN.length + 3; // +2 border, +1 so inner content width (rightInnerWidth-1) fits full line
+const MIN_RIGHT_WIDTH_FOR_THEME = THEME_PRESET_LINE_PLAIN.length + 3;
 const SETTINGS_PANEL_GAP = 3;
 
 const KEYMAP_ROWS = [

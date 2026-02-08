@@ -48,6 +48,7 @@ const {
   save: saveConfig,
   clearConfigCache,
   clearAllData,
+  seedBuggyPublishedState,
   addResultToHistory,
 } = require('./engine/config');
 
@@ -112,7 +113,6 @@ async function run() {
   }
 
   function showResults() {
-    // Record final WPM sample so graph has an end point (helps Zen and short custom tests)
     if (typeof stats.sampleWpm === 'function') stats.sampleWpm(true);
     const s = stats.getSnapshot();
     const durationSeconds = s.elapsedSeconds;
@@ -176,7 +176,6 @@ async function run() {
     if (!stats || !typingState) return;
     if (screen !== SCREENS.TEST) return;
 
-    // Sample WPM for graph before any early return (needed for Zen and short tests)
     if (typeof stats.sampleWpm === 'function') stats.sampleWpm();
 
     if (screen === SCREENS.TEST && testMode === 'zen') {
@@ -837,6 +836,21 @@ if (require.main === module) {
     configManager.init().then(() => {
       clearAllData();
       console.log('Stored settings and results cleared. Run without --clear-data to start fresh.');
+      process.exit(0);
+    }).catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+    return;
+  }
+  if (process.argv.includes('--simulate-published')) {
+    const { configManager } = require('./core/configManager');
+    const { seedBuggyPublishedState } = require('./engine/config');
+    configManager.init().then(() => {
+      seedBuggyPublishedState();
+      console.log('Buggy published state seeded (caretStyle=|, quickRestart=enter, tapeMargin=100).');
+      console.log('Run: TERMINALTYPE_SIMULATE_PUBLISHED=1 node index.js');
+      console.log('to see the buggy vertical-bar caret locally. Run without the env var to test the fix.');
       process.exit(0);
     }).catch((err) => {
       console.error(err);

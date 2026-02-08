@@ -17,8 +17,6 @@ function setupRawInput(onKey) {
   process.stdin.setEncoding('utf8');
   process.stdin.resume();
 
-  // Shift+Enter: some terminals send escape sequences that readline doesn't map to key.shift+return.
-  // Treat known sequences as shiftEnter so Zen mode doesn't type "13~" etc.
   const isShiftEnterSequence = (s) =>
     (typeof s === 'string' && (s === '\x1b[13;2~' || s === '\x1b[13~' || s === '[13;2~' || s === '[13~' || s === '13~'));
 

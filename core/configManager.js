@@ -1,16 +1,5 @@
 'use strict';
 
-/**
- * Persistent config manager using the `conf` package.
- * Stores settings and typing test results in the platform config directory:
- * - Linux:   ~/.config/monkeytype-tui/config.json
- * - macOS:   ~/Library/Preferences/monkeytype-tui/config.json
- * - Windows: %APPDATA%\monkeytype-tui\config.json
- *
- * Call await configManager.init() before first use so that persistence is enabled.
- * Before init(), get/set use in-memory defaults (no disk).
- */
-
 const CONFIG_VERSION = 1;
 const MAX_RESULTS = 500;
 

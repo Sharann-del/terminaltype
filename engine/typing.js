@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * Typing test engine: word list loading, random word generation, line building with wrapping,
- * and character-by-character state (position, correct/incorrect, caret).
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -271,15 +266,12 @@ function createLineBasedTypingStateFromWords(getNextWords, maxLineLen, wordLimit
       const line = currentRowIndex === 0 ? lineTop : lineCenter;
       const typed = currentRowIndex === 0 ? typedTop : typedCenter;
       if (!line || wordIndex >= line.length) return false;
-      // Any word we've passed is incomplete (missed chars): allow backspace till that word
       for (let w = 0; w < wordIndex; w++) {
         const tw = typed[w];
         if (tw && tw.length < line[w].length) return true;
       }
       const expectedLen = line[wordIndex].length;
-      // Inside current word with untyped letters: allow
       if (charIndex > 0 && charIndex < expectedLen) return true;
-      // At start of current word: allow if previous word was left incomplete (missed chars)
       if (charIndex === 0 && wordIndex > 0) {
         const prevTyped = typed[wordIndex - 1];
         const prevExpected = line[wordIndex - 1].length;
@@ -411,11 +403,9 @@ function createLineBasedTypingStateFromWords(getNextWords, maxLineLen, wordLimit
     },
 
     getTotalWordsTyped() {
-      // This includes the current word if we're in the middle of typing it
       const line = currentRowIndex === 0 ? lineTop : lineCenter;
       const word = line[wordIndex];
       if (word && charIndex >= word.length) {
-        // We've completed the current word
         return wordsCompletedBeforeCurrentLine + wordIndex + 1;
       }
       return wordsCompletedBeforeCurrentLine + wordIndex;
