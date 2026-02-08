@@ -147,10 +147,8 @@ function renderWordWithState(word, typingState, lineIdx, wordIndex, theme, blind
       if (status === 'caret') {
         const style = (caretOptions && caretOptions.mainCaretStyle) || caret;
         const caretChar = (caretOptions && caretOptions.mainCaretChar) || null;
-        if (caretChar === 'underline') {
+        if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
           out += ANSI_UNDERLINE + style + ch + reset;
-        } else if (caretChar && caretChar !== ' ') {
-          out += style + caretChar + reset + dim + ch + reset;
         } else {
           out += style + ch + reset;
         }
@@ -180,10 +178,8 @@ function renderWordWithState(word, typingState, lineIdx, wordIndex, theme, blind
   } else if (!hasNextWord && isCurrent && typingState.getCharStatus(lineIdx, wordIndex, word.length) === 'caret') {
     const style = (caretOptions && caretOptions.mainCaretStyle) || caret;
     const caretChar = (caretOptions && caretOptions.mainCaretChar) || null;
-    if (caretChar === 'underline') {
+    if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
       out += ANSI_UNDERLINE + style + ' ' + reset;
-    } else if (caretChar && caretChar !== ' ') {
-      out += style + caretChar + reset + dim + ' ' + reset;
     } else {
       out += style + ' ' + reset;
     }
@@ -199,10 +195,8 @@ function renderWordWithTrailingSpace(word, typingState, lineIdx, wordIndex, them
   if (caretOnSpace && caretOptions) {
     const style = (caretOptions.mainCaretStyle) || caret;
     const caretChar = caretOptions.mainCaretChar || null;
-    if (caretChar === 'underline') {
+    if (caretChar === 'underline' || (caretChar && caretChar !== ' ')) {
       out += ANSI_UNDERLINE + style + ' ' + reset;
-    } else if (caretChar && caretChar !== ' ') {
-      out += style + caretChar + reset + dim + ' ' + reset;
     } else {
       out += style + ' ' + reset;
     }
@@ -235,13 +229,7 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
       const { char: ch, status } = typingState.getTapeCharAt(tapeCharIndex);
       const charToShow = ch || ' ';
       if (isMainCaret) {
-        if (mainCaretChar === 'underline') {
-          out += ANSI_UNDERLINE + caret + charToShow + reset;
-        } else if (mainCaretChar) {
-          out += caret + mainCaretChar + reset + dim + charToShow + reset;
-        } else {
-          out += caret + charToShow + reset;
-        }
+        out += ANSI_UNDERLINE + caret + charToShow + reset;
       } else if (isPaceCaret) {
         if (paceCaretChar) {
           out += dim + caret + paceCaretChar + reset + dim + charToShow + reset;
@@ -259,13 +247,7 @@ function renderTapeLine(typingState, theme, blindMode, scrollOffset, viewportWid
       }
     } else {
       if (isMainCaret) {
-        if (mainCaretChar === 'underline') {
-          out += ANSI_UNDERLINE + caret + ' ' + reset;
-        } else if (mainCaretChar) {
-          out += caret + mainCaretChar + reset + dim + ' ' + reset;
-        } else {
-          out += caret + ' ' + reset;
-        }
+        out += ANSI_UNDERLINE + caret + ' ' + reset;
       } else if (isPaceCaret) {
         if (paceCaretChar) {
           out += dim + caret + paceCaretChar + reset + dim + ' ' + reset;
@@ -487,25 +469,26 @@ function renderTestScreen(options) {
   const pad = Math.max(0, Math.floor((cols - boxWidth) / 2));
   const keymapPad = keymapWidth ? Math.max(0, Math.floor((cols - keymapWidth) / 2)) : 0;
 
-  let out = '\x1b[?25l\x1b[2J\x1b[H';
+  const hide = '\x1b[?25l';
+  let out = hide + '\x1b[2J\x1b[H' + hide;
   let row = startRow;
   for (const line of statsBox) {
-    out += '\x1b[' + row + ';1H\x1b[K' + ' '.repeat(pad) + line + '\n';
+    out += '\x1b[' + row + ';1H' + hide + '\x1b[K' + ' '.repeat(pad) + line + '\n';
     row++;
   }
   if (statsBox.length) row += 2;
   for (const line of typingBox) {
-    out += '\x1b[' + row + ';1H\x1b[K' + ' '.repeat(pad) + line + '\n';
+    out += '\x1b[' + row + ';1H' + hide + '\x1b[K' + ' '.repeat(pad) + line + '\n';
     row++;
   }
   if (keymapLines.length) {
     row += 1;
     for (const line of keymapLines) {
-      out += '\x1b[' + row + ';1H\x1b[K' + ' '.repeat(keymapPad) + line + '\n';
+      out += '\x1b[' + row + ';1H' + hide + '\x1b[K' + ' '.repeat(keymapPad) + line + '\n';
       row++;
     }
   }
-  out += theme.reset + '\x1b[?25l';
+  out += theme.reset + hide;
   process.stdout.write(out);
 }
 

@@ -122,6 +122,18 @@ function clearConfigCache() {
   cached = null;
 }
 
+function clearAllData() {
+  if (usePersistentConfig()) {
+    const cm = getConfigManager();
+    if (cm && typeof cm.reset === 'function') cm.reset();
+  } else {
+    try {
+      if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH);
+    } catch (_) {}
+  }
+  cached = null;
+}
+
 function getConfigPath() {
   if (usePersistentConfig()) return getConfigManager().getConfigPath();
   return CONFIG_PATH;
@@ -425,6 +437,7 @@ module.exports = {
   getConfigPath,
   load,
   clearConfigCache,
+  clearAllData,
   getBehavior,
   setBehavior,
   getCaret,

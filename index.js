@@ -47,6 +47,7 @@ const {
   setCustomThemeColor,
   save: saveConfig,
   clearConfigCache,
+  clearAllData,
   addResultToHistory,
 } = require('./engine/config');
 
@@ -66,6 +67,10 @@ const SCREENS = {
 
 async function run() {
   await configManager.init();
+  if (process.argv.includes('--clear-data')) {
+    clearAllData();
+    process.argv = process.argv.filter((a) => a !== '--clear-data');
+  }
   let screen = SCREENS.MAIN_MENU;
   let mainMenuIndex = 0;
   let timeSubIndex = 0;
@@ -826,6 +831,19 @@ async function run() {
 }
 
 if (require.main === module) {
+  if (process.argv.includes('--clear-data')) {
+    const { configManager } = require('./core/configManager');
+    const { clearAllData } = require('./engine/config');
+    configManager.init().then(() => {
+      clearAllData();
+      console.log('Stored settings and results cleared. Run without --clear-data to start fresh.');
+      process.exit(0);
+    }).catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+    return;
+  }
   if (!process.stdin.isTTY) {
     console.error('This program requires an interactive terminal.');
     process.exit(1);
