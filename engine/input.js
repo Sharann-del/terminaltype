@@ -2,17 +2,40 @@
 
 const readline = require('readline');
 
+let keypressEventsEmitted = false;
+
 function setupRawInput(onKey) {
   if (!process.stdin.isTTY) {
     throw new Error('Not a TTY. Run in a terminal.');
   }
-  readline.emitKeypressEvents(process.stdin);
+  if (!keypressEventsEmitted) {
+    readline.emitKeypressEvents(process.stdin);
+    keypressEventsEmitted = true;
+  }
+  process.stdin.removeAllListeners('keypress');
   process.stdin.setRawMode(true);
   process.stdin.setEncoding('utf8');
   process.stdin.resume();
 
+  // Shift+Enter: some terminals send escape sequences that readline doesn't map to key.shift+return.
+  // Treat known sequences as shiftEnter so Zen mode doesn't type "13~" etc.
+  const isShiftEnterSequence = (s) =>
+    (typeof s === 'string' && (s === '\x1b[13;2~' || s === '\x1b[13~' || s === '[13;2~' || s === '[13~' || s === '13~'));
+
   process.stdin.on('keypress', (str, key) => {
+    if (key && key.sequence && isShiftEnterSequence(key.sequence)) {
+      onKey({ type: 'shiftEnter' });
+      return;
+    }
     if (!key) {
+      if (str === '\u001b' || str === '\x1b') {
+        onKey({ type: 'escape' });
+        return;
+      }
+      if (isShiftEnterSequence(str)) {
+        onKey({ type: 'shiftEnter' });
+        return;
+      }
       if (str) onKey({ type: 'char', char: str });
       return;
     }
@@ -32,12 +55,24 @@ function setupRawInput(onKey) {
       onKey({ type: 'arrowDown' });
       return;
     }
+    if (key.name === 'left') {
+      onKey({ type: 'arrowLeft' });
+      return;
+    }
+    if (key.name === 'right') {
+      onKey({ type: 'arrowRight' });
+      return;
+    }
     if (key.name === 'return' || key.name === 'enter') {
-      onKey({ type: 'enter' });
+      onKey({ type: key.shift ? 'shiftEnter' : 'enter' });
       return;
     }
     if (key.name === 'escape') {
       onKey({ type: 'escape' });
+      return;
+    }
+    if (key.name === 'tab') {
+      onKey({ type: 'tab' });
       return;
     }
     if (key.name === 'space') {
